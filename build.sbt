@@ -1,7 +1,11 @@
 name := "sqlshift"
+
 organization := "com.goibibo"
+
 version := "0.1"
-scalaVersion := "2.10.6"
+
+scalaVersion := "2.11.12"
+
 logLevel := Level.Info
 
 resolvers ++= Seq(
@@ -12,7 +16,7 @@ resolvers ++= Seq(
     "redshift" at "http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release"
 )
 
-val sparkVersion = "1.6.0"
+val sparkVersion = "2.4.3"
 val awsSDKVersion = "1.10.22"
 val dockerItScalaVersion = "0.9.0"
 val scalaTestVersion = "3.0.1"
@@ -42,7 +46,7 @@ libraryDependencies ++= Seq(
     "com.github.scopt" %% "scopt" % "3.5.0",
     "javax.mail" % "mail" % "1.4.7",
     "io.dropwizard" % "dropwizard-metrics" % "1.0.5",
-    "com.github.goibibo" %% "dataplatform_utils" % "v1.6",
+    "com.github.goibibo" % "dataplatform_utils_2.10" % "v1.6",
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.7.8",
     "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
