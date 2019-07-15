@@ -26,9 +26,11 @@ object MySQLToRedshiftMigrator {
     private val logger: Logger = LoggerFactory.getLogger(MySQLToRedshiftMigrator.getClass)
 
     private def getWhereCondition(incrementalSettings: IncrementalSettings): Option[String] = {
-
         val deltaTime = incrementalSettings.deltaTime
+        logger.info(s"deltaTime: - $deltaTime \t fromOffset: - $incrementalSettings.fromOffset \t toOffset: - $incrementalSettings.toOffset" +
+          s"\t incrementalColumn: - $incrementalSettings.incrementalColumn")
         val column = incrementalSettings.incrementalColumn
+
         val fromOffset = incrementalSettings.fromOffset
         val toOffset = incrementalSettings.toOffset
         logger.info(s"Found incremental condition. Column: ${column.orNull}, fromOffset: " +
@@ -78,7 +80,6 @@ object MySQLToRedshiftMigrator {
                             else None
                         }
                         if ( distKeyType.isDefined  ){
-
                             val minTimestamp = Util.getDateTimeFromUTCTimestamp(internalConfig.incrementalSettings.get.fromOffset.get)
                             val maxTimestamp = internalConfig.incrementalSettings.get.toOffset match {
                                 case Some(toOffsetTimeStr:String) => Util.getDateTimeFromUTCTimestamp(toOffsetTimeStr)

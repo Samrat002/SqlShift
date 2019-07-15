@@ -6,7 +6,7 @@ import java.sql.ResultSet
 import com.goibibo.sqlshift.models.Configurations._
 import com.goibibo.sqlshift.models.InternalConfs.{IncrementalSettings, InternalConfig}
 import com.goibibo.sqlshift.models._
-import org.apache.spark.sql.{SQLContext, SparkSession}
+import org.apache.spark.sql.SQLContext
 import org.apache.spark.{SparkConf, SparkContext}
 import org.joda.time.format.ISODateTimeFormat
 import org.joda.time._
@@ -99,35 +99,18 @@ object Util {
       result.close()
       connection.close()
     }
-
-
-    def getSparkContext: (SparkContext, SQLContext) = {
-        logger.info("Starting spark context...")
-
-        val sparkSession: SparkSession = SparkSession
-          .builder()
-          .config("spark.sql.parquet.fs.optimized.committer.optimization-enabled", "true")
-          .config("hive.metastore.client.factory.class", "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory")
-          .enableHiveSupport()
-          .appName("RDS to Redshift DataPipeline")
-          .getOrCreate()
-
-        val sc: SparkContext = sparkSession.sparkContext
-        val sqlContext = sparkSession.sqlContext
-
-        System.setProperty("com.amazonaws.services.s3.enableV4", "true")
-        sc.hadoopConfiguration.set("fs.s3a.endpoint", "s3.ap-south-1.amazonaws.com")
-        sc.hadoopConfiguration.set("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
-        sc.getConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        sc.hadoopConfiguration.set("fs.s3a.fast.upload", "true")
-        sc.hadoopConfiguration.set("fs.s3a.fast.upload.buffer", "disk")
-        sc.hadoopConfiguration.set("fs.s3a.connection.maximum","1000")
-        sc.hadoopConfiguration.set("fs.s3a.attempts.maximum","30")
-        (sc, sqlContext)
-
+  }
+  def getSparkContext: (SparkContext, SQLContext) = {
+    logger.info("Starting spark context...")
+    val sparkConf: SparkConf = new SparkConf().setAppName("RDS to Redshift DataPipeline")
+    val sc: SparkContext = new SparkContext(sparkConf)
+    val sqlContext: SQLContext = new SQLContext(sc)
+    System.setProperty("com.amazonaws.services.s3.enableV4", "true")
+    sc.hadoopConfiguration.set("fs.s3a.endpoint", "s3.ap-south-1.amazonaws.com")
+    (sc, sqlContext)
   }
 
-  /**
+    /**
     * Get optimum number of partitions on the basis of auto incremental and executor size.
     * If fails then return 1
     *
@@ -153,24 +136,7 @@ object Util {
     logger.info("Total number partitions are {}", partitions)
     partitions
   }
-
-  def getSparkContext: (SparkContext, SQLContext) = {
-    logger.info("Starting spark context...")
-    val sparkConf: SparkConf = new SparkConf().setAppName("RDS to Redshift DataPipeline")
-    val sc: SparkContext = new SparkContext(sparkConf)
-    val sqlContext: SQLContext = new SQLContext(sc)
-
-    System.setProperty("com.amazonaws.services.s3.enableV4", "true")
-    sc.hadoopConfiguration.set("fs.s3a.endpoint", "s3.ap-south-1.amazonaws.com")
-    sc.hadoopConfiguration.set("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2")
-    sc.getConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    sc.hadoopConfiguration.set("fs.s3a.fast.upload", "true")
-    sc.hadoopConfiguration.set("fs.s3a.fast.upload.buffer", "disk")
-    sc.hadoopConfiguration.set("fs.s3a.connection.maximum", "1000")
-    sc.hadoopConfiguration.set("fs.s3a.attempts.maximum", "30")
-    (sc, sqlContext)
-  }
-
+  
   def closeSparkContext(sparkContext: SparkContext): Unit = {
     sparkContext.stop()
   }
@@ -352,9 +318,8 @@ object Util {
   }
 
   def getAppConfigurations(jsonPath: String): PAppConfiguration = {
-    var configurations: Seq[AppConfiguration] = Seq[AppConfiguration]()
+    var configurations= Seq[AppConfiguration]()
     implicit val formats = DefaultFormats
-
     val jsonInputStream: InputStream = new File(jsonPath).toURI.toURL.openStream()
     try {
       val json: JValue = parse(jsonInputStream)
@@ -522,6 +487,7 @@ object Util {
       Some(predicates)
     }
   }
+
 
 
 }
