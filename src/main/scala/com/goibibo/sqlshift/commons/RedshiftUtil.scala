@@ -203,6 +203,11 @@ object RedshiftUtil {
                 Some(key)
             case None =>
                 logger.info("Found no distKey in configuration")
+                //TODO: SmartFullDump
+                //Check If incremental config is available then use the incremental field as the distkey.
+                //If incremental field is non indexed then raise a warning.
+                //Implementation Details: incrementalColumn can be found here, internalConfig.incrementalSettings.incrementalColumn 
+                
                 val meta = con.getMetaData
                 val resPrimaryKeys = meta.getPrimaryKeys(conf.db, null, conf.tableName)
                 var primaryKeys = scala.collection.immutable.Set[String]()
