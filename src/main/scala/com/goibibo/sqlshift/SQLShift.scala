@@ -28,52 +28,52 @@ object SQLShift {
         new OptionParser[AppParams]("SQLShift") {
             head("MySQL to Redshift DataPipeline")
             opt[String]("table-details")
-                    .abbr("td")
-                    .text("Table details json file path including")
-                    .required()
-                    .valueName("<path to Json>")
-                    .action((x, c) => c.copy(tableDetailsPath = x))
+                .abbr("td")
+                .text("Table details json file path including")
+                .required()
+                .valueName("<path to Json>")
+                .action((x, c) => c.copy(tableDetailsPath = x))
 
             opt[String]("mail-details")
-                    .abbr("mail")
-                    .text("Mail details property file path(For enabling mail)")
-                    .optional()
-                    .valueName("<path to properties file>")
-                    .action((x, c) => c.copy(mailDetailsPath = x))
+                .abbr("mail")
+                .text("Mail details property file path(For enabling mail)")
+                .optional()
+                .valueName("<path to properties file>")
+                .action((x, c) => c.copy(mailDetailsPath = x))
 
             opt[Unit]("alert-on-failure")
-                    .abbr("aof")
-                    .text("Alert only when fails")
-                    .optional()
-                    .action((_, c) => c.copy(alertOnFailure = true))
+                .abbr("aof")
+                .text("Alert only when fails")
+                .optional()
+                .action((_, c) => c.copy(alertOnFailure = true))
 
             opt[Int]("retry-count")
-                    .abbr("rc")
-                    .text("How many times to retry on failed transfers(Count should be less than equal to 9)")
-                    .optional()
-                    .valueName("<count>")
-                    .action((x, c) => c.copy(retryCount = x))
+                .abbr("rc")
+                .text("How many times to retry on failed transfers(Count should be less than equal to 9)")
+                .optional()
+                .valueName("<count>")
+                .action((x, c) => c.copy(retryCount = x))
 
             opt[Unit]("log-metrics-reporter")
-                    .abbr("lmr")
-                    .text("Enable metrics reporting in logs")
-                    .optional()
-                    .action((x, c) => c.copy(logMetricsReporting = true))
+                .abbr("lmr")
+                .text("Enable metrics reporting in logs")
+                .optional()
+                .action((x, c) => c.copy(logMetricsReporting = true))
 
             opt[Unit]("jmx-metrics-reporter")
-                    .abbr("jmr")
-                    .text("Enable metrics reporting through JMX")
-                    .optional()
-                    .action((x, c) => c.copy(jmxMetricsReporting = true))
+                .abbr("jmr")
+                .text("Enable metrics reporting through JMX")
+                .optional()
+                .action((x, c) => c.copy(jmxMetricsReporting = true))
 
             opt[Long]("metrics-window-size")
-                    .abbr("mws")
-                    .text("Metrics window size in seconds. Default: 5 seconds")
-                    .optional()
-                    .action((x, c) => c.copy(metricsWindowSize = x))
+                .abbr("mws")
+                .text("Metrics window size in seconds. Default: 5 seconds")
+                .optional()
+                .action((x, c) => c.copy(metricsWindowSize = x))
 
             help("help")
-                    .text("Usage Of arguments")
+                .text("Usage Of arguments")
         }
 
     def getOffsetManager(pAppConfiguration: PAppConfiguration, tableName: String): Option[OffsetManager] = {
@@ -81,7 +81,7 @@ object SQLShift {
             val offsetMangerConf: Configurations.OffsetManagerConf = pAppConfiguration.offsetManager.get
             if (offsetMangerConf.`type`.isDefined && offsetMangerConf.`type`.get == "zookeeper") {
                 if (offsetMangerConf.prop.isDefined && offsetMangerConf.prop.get.contains("zkquoram")
-                        && offsetMangerConf.prop.get.contains("path")) {
+                    && offsetMangerConf.prop.get.contains("path")) {
                     logger.info("Initiating zookeeper offset manager...")
                     val prop = new Properties()
                     prop.putAll(offsetMangerConf.prop.get.asJava)
@@ -89,7 +89,7 @@ object SQLShift {
                 }
                 else {
                     logger.warn("Required details are not present. zkquoram & path are mandatory for zookeeper " +
-                            "offset manager in prop.")
+                        "offset manager in prop.")
                     None
                 }
             } else if (offsetMangerConf.`class`.isDefined) {
@@ -97,8 +97,8 @@ object SQLShift {
                 prop.putAll(offsetMangerConf.prop.getOrElse(Map[String, String]()).asJava)
                 val args = Array[AnyRef](prop, tableName)
                 val offsetManager = Class.forName(offsetMangerConf.`class`.get)
-                        .getConstructor(classOf[Properties], classOf[String])
-                        .newInstance(args: _*).asInstanceOf[OffsetManager]
+                    .getConstructor(classOf[Properties], classOf[String])
+                    .newInstance(args: _*).asInstanceOf[OffsetManager]
                 Some(offsetManager)
             } else {
                 logger.warn("No field is found to Initiate Offset Manager. Please add type or class...")
@@ -125,7 +125,7 @@ object SQLShift {
         pAppConfiguration.configuration.filter { p =>
             // Checking condition if it is rerun & Failed/Empty then reprocess
             val runCondition = !isReRun || p.status.isEmpty || !p.status.get.isSuccessful
-            if(!runCondition)
+            if (!runCondition)
                 finalConfigurations :+= p
             runCondition
         }.foreach { configuration: AppConfiguration =>
@@ -145,10 +145,16 @@ object SQLShift {
 
                 val internalConfigNew: InternalConfig = if (offsetManager.isDefined && incSettings.isDefined) {
                     val offset: Option[Offset] = offsetManager.get.getOffset
-                    val fromOffset = if (incSettings.get.fromOffset.isEmpty && offset.isDefined) offset.get.data else incSettings.get.fromOffset
-                    if (incSettings.get.autoIncremental.isDefined && incSettings.get.autoIncremental.get && incSettings.get.incrementalColumn.isDefined) {
-                        val (_, max): (String, String) = Util.getMinMax(configuration.mysqlConf, incSettings.get.incrementalColumn.get)
-                        configuration.internalConfig.copy(incrementalSettings = Some(incSettings.get.copy(fromOffset = fromOffset, toOffset = Some(max))))
+
+                    val fromOffset: Option[String] = if (incSettings.get.fromOffset.isEmpty && offset.isDefined) offset.get.data
+                    else incSettings.get.fromOffset
+
+                    if (incSettings.get.autoIncremental.isDefined && incSettings.get.autoIncremental.get &&
+                        incSettings.get.incrementalColumn.isDefined) {
+                        val toOffset: Option[String] = Some(incSettings.get.toOffset.getOrElse(
+                            Util.getMinMax(configuration.mysqlConf, incSettings.get.incrementalColumn.get)._2
+                        ))
+                        configuration.internalConfig.copy(incrementalSettings = Some(incSettings.get.copy(fromOffset = fromOffset, toOffset = toOffset)))
                     } else configuration.internalConfig.copy(incrementalSettings = Some(incSettings.get.copy(fromOffset = fromOffset)))
                 } else configuration.internalConfig
 
