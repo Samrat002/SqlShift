@@ -39,8 +39,8 @@ object MySQLToRedshiftMigrator {
             Some(s"${column.get} BETWEEN date_sub('${fromOffset.get}' , INTERVAL '${deltaTime.get}' MINUTE ) AND '${toOffset.get}'")
         } else if (column.isDefined && fromOffset.isDefined) {
             Some(s"${column.get} >= date_sub('${fromOffset.get}' , INTERVAL '${deltaTime.get}' MINUTE )")
-        } else if (column.isDefined && toOffset.isDefined) {
-            Some(s"${column.get} <= date_sub('${fromOffset.get}' , INTERVAL '${deltaTime.get}' MINUTE )")
+//        } else if (column.isDefined && toOffset.isDefined) {
+//            Some(s"${column.get} <= date_sub('${fromOffset.get}' , INTERVAL '${deltaTime.get}' MINUTE )")
         } else {
             logger.info("Either of column or (fromOffset/toOffset) is not provided")
             None
@@ -63,36 +63,44 @@ object MySQLToRedshiftMigrator {
         val tableDetails: TableDetails = RedshiftUtil.getValidFieldNames(mysqlConfig, internalConfig)
         logger.info("Table details: \n{}", tableDetails.toString)
         SqlShiftMySQLDialect.registerDialect()
+
         val partitionDetails: Option[scala.Seq[String]] = internalConfig.shallSplit match {
             case Some(false) =>
+                logger.info(s"Line 66 InternalConfig:- ${internalConfig.incrementalSettings}")
                 logger.info("shallSplit is false")
                 None
             case _ =>
-                logger.info("shallSplit either not set or true")
+                logger.info(s"shallSplit either not set or true. Distribution key:- ${tableDetails.distributionKey}")
+
                  tableDetails.distributionKey match {
                     case Some(distKey) =>
                         val typeOfDistKey = tableDetails.validFields.filter(_.fieldName == distKey).head.fieldType
                         //Spark supports only long to break the table into multiple fields
                         //https://github.com/apache/spark/blob/branch-1.6/sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/jdbc/JDBCRelation.scala#L33
+                        logger.info(s"DistKey type :- ${typeOfDistKey}")
                         val distKeyType:Option[DataType] = {
                             if(typeOfDistKey == "TIMESTAMP") Some(TimestampType)
                             else if (typeOfDistKey.startsWith("INT")) Some(IntegerType)
                             else None
                         }
-                        if ( distKeyType.isDefined  ){
+                        logger.info(s"DistKeytype :- $distKeyType.get")
+
+                        if ( distKeyType.isDefined && distKeyType.get == TimestampType){
+                            logger.info(s"inside the distKeytype :- \t internalConfig:- ${internalConfig.incrementalSettings.get.fromOffset.get}")
                             val minTimestamp = Util.getDateTimeFromUTCTimestamp(internalConfig.incrementalSettings.get.fromOffset.get)
                             val maxTimestamp = internalConfig.incrementalSettings.get.toOffset match {
                                 case Some(toOffsetTimeStr:String) => Util.getDateTimeFromUTCTimestamp(toOffsetTimeStr)
                                 case None => DateTime.now(DateTimeZone.UTC)
                             }
 
-                            distKeyType.get match {
+                            val predicates  = distKeyType.get match {
                                 case _:TimestampType => getTimestampPredicates(mysqlConfig, sqlContext, internalConfig, distKey, minTimestamp , maxTimestamp )
                                 case _:IntegerType => getIntegralPredicates(mysqlConfig,sqlContext,internalConfig,distKey)
                             }
+                            predicates
                         }
                         else {
-                            //logger.warn(s"primary keys is non INT $typeOfPrimaryKey")
+                            logger.warn(s"primary keys is non INT")
                             None
                         }
                     case None =>
@@ -118,6 +126,7 @@ object MySQLToRedshiftMigrator {
             case None =>
                 val tableQuery = internalConfig.incrementalSettings match {
                     case Some(incrementalSettings) =>
+                        logger.info(s"My increamental settings:- ${incrementalSettings}")
                         val whereCondition = getWhereCondition(incrementalSettings)
                         s"""(SELECT * from ${mysqlConfig.tableName}${if (whereCondition.isDefined) " WHERE " + whereCondition.get else ""}) AS A"""
                     case None => mysqlConfig.tableName
